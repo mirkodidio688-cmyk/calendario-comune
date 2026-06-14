@@ -1,0 +1,23 @@
+:root {
+  --free: #4ade80;
+  --busy: #f87171;
+  --mixed: #facc15;
+  --empty: #1f2937;
+}
+body { font: 14px/1.4 system-ui, sans-serif; background: #0b1220; color: #e5e7eb; margin: 0; padding: 1rem; }
+header { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+button { background: #2563eb; color: white; border: 0; padding: .5rem 1rem; border-radius: 6px; cursor: pointer; }
+button:hover { background: #1d4ed8; }
+main { margin-top: 1rem; }
+nav { display: flex; gap: 1rem; align-items: center; margin-bottom: .5rem; flex-wrap: wrap; }
+#grid { display: grid; gap: 1px; background: #334155; border: 1px solid #334155; }
+.cell { background: var(--empty); padding: 4px 6px; min-height: 28px; text-align: center; font-size: 11px; }
+.cell.time { background: #111827; position: sticky; left: 0; }
+.cell.day { background: #111827; font-weight: 600; }
+.free { background: var(--free); color: #052e16; }
+.busy { background: var(--busy); color: #450a0a; }
+.mixed { background: var(--mixed); color: #422006; }
+#who { opacity: .8; }
+input { background: #111827; color: #e5e7eb; border: 1px solid #334155; padding: .3rem .5rem; border-radius: 4px; }
+.muted { color: #94a3b8; font-size: 12px; }
+#banner { background: #1d4ed8; color: white; padding: .75rem 1rem; border-radius: 6px; margin: 0 0 1rem 0; }

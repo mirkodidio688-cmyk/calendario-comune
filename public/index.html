@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Calendario condiviso</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Quando siamo liberi?</h1>
+    <p>Collega il calendario Google. Evidenziamo slot dove tutti disponibili.</p>
+    <button id="login">Connetti Google</button>
+    <button id="logout" hidden>Esci</button>
+    <span id="who"></span>
+  </header>
+
+  <main id="app" hidden>
+    <nav>
+      <button id="prev">&larr;</button>
+      <span id="range"></span>
+      <button id="next">&rarr;</button>
+      <label>Fuso: <input id="tz" type="text" value="Europe/Rome"></label>
+    </nav>
+    <div id="grid"></div>
+    <details>
+      <summary>Amici collegati</summary>
+      <ul id="friends"></ul>
+      <button id="copyInvite">Copia link invito</button>
+      <p id="inviteMsg" class="muted"></p>
+    </details>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
