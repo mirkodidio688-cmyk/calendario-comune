@@ -1,7 +1,6 @@
-// Restituisce SOLO busy/free per un calendario.
-// Scope richiesto: https://www.googleapis.com/auth/freebusy (NON calendar.readonly).
-// Così non si vedono titoli/dettagli eventi.
-const SCOPES = 'https://www.googleapis.com/auth/freebusy https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
+// Restituisce busy/free per un calendario.
+// Scope richiesto: calendar.readonly (non serve l'API abilitata separatamente).
+const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
