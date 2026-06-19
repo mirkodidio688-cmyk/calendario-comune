@@ -1,37 +1,44 @@
-// netlify/functions/auth-callback.js (Versione corretta e stabile)
 const crypto = require('crypto');
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const ORIGIN = process.env.SITE_ORIGIN || 'https://calendario-comune.netlify.app';
 
-// Leggiamo ENC_KEY correttamente. Se non c'è, generane una (per test locale)
-const KEY_SOURCE = process.env.ENC_KEY;
-const ENCRYPTION_KEY = KEY_SOURCE
-  ? Buffer.from(KEY_SOURCE).slice(0, 32) // Usa il secret di produzione salvato in Netlify Settings
-  : crypto.randomBytes(32);               // Chiave temporanea per test locale/dev
+// Genera una chiave 32-byte se mancante (sicuro)
+function getEncKey() {
+  return process.env.ENC_KEY ? Buffer.from(process.env.ENC_KEY).slice(0, 32) : crypto.randomBytes(32);
+}
+const ENC_KEY = getEncKey(); // Valida all'avvio del container
 
-// ... (non devi modificare più nulla sotto riguardo alle variabili) ...
+// --- Funzioni di crittografia ---
+function enc(plain) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', ENC_KEY, iv);
+  const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, ct]).toString('base64url'); // base64url per sicurezza cookie
+}
 
-// 2. La funzione che gestisce Blobs senza crashare (giù nel file)
+// --- Storage sicuro (Blobs con fallback automatico) ---
 async function storeToken(email, encrypted) {
-  if (!email) email = 'anon';
+  if (!email) email = 'anon'; // Blobs richiede chiave stringa
   try {
     const { getStore } = require('@netlify/blobs');
-    const store = getStore('tokens');
+    const store = getStore('tokens'); // Nome del "Bucket" Blobs: tokens
     await store.set(email, encrypted);
     return { method: 'blobs', email };
   } catch (e) {
-    // Questo blocco cattura l'errore "MissingBlobsEnvironmentError"
-    // e permette il fallback sicuro ai cookie.
-    console.warn('⚠️ Blobs non attivo, uso cookie.');
-    return null;
+    // Se Blobs non è configurato (es. errore env var), torniamo null per usare il cookie
+    console.warn('⚠️ Netlify Blobs non disponibile (fallback sicuro su cookie): ', e.message);
+    return null; 
   }
 }
 
 // --- Callback OAuth ---
 exports.handler = async (event) => {
   const code = event.queryStringParameters?.code;
+  const REDIRECT = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8888/.netlify/functions/auth-callback'; // Definizione locale
+
   if (!code || !CLIENT_ID) {
     return { statusCode: 400, body: 'Codice mancante o variabili GOOGLE non configurate.' };
   }
