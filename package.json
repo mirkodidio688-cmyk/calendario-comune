@@ -4,8 +4,5 @@
   "private": true,
   "dependencies": {
     "@netlify/blobs": "^8.1.0"
-  },
-  "devDependencies": {
-    "@netlify/plugin-blobs": "^1.0.0"
   }
 }
