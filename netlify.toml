@@ -6,3 +6,9 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+[functions]
+  included_files = ["node_modules/@netlify/blobs/**"]
+
+[[plugins]]
+  package = "@netlify/plugin-blobs"
