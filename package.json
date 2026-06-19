@@ -2,7 +2,16 @@
   "name": "calendar-site",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "NODE_ENV=development node server/index.js"
+  },
   "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+    "cookie-session": "^2.1.0",
+    "express": "^4.21.0",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

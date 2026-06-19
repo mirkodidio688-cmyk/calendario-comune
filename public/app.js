@@ -52,22 +52,18 @@ function loadMe() {
 }
 
 async function startLogin() {
-  const r = await fetch('/.netlify/functions/auth-start');
-  const { url } = await r.json();
-  location.href = url;
+  // Redirect to server-side auth — no fetch needed, browser follows the redirect
+  location.href = '/api/auth/login';
 }
 
 async function fetchBusy(emails, timeMin, timeMax) {
-  logToPanel(`Fetching busy for: ${emails.join(', ')}`);
-  const url = `/.netlify/functions/events?emails=${encodeURIComponent(emails.join(','))}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
-  logToPanel(`Request URL: ${url}`);
+  const url = `/api/calendar/busy?emails=${encodeURIComponent(emails.join(','))}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
   const r = await fetch(url);
   if (!r.ok) {
-    logToPanel(`Error: ${r.status} ${r.statusText}`);
-    throw new Error(`events ${r.status}`);
+    const errBody = await r.text().catch(() => '');
+    throw new Error(`calendar ${r.status}: ${errBody.slice(0, 200)}`);
   }
   const data = await r.json();
-  logToPanel(`Response: ${JSON.stringify(data, null, 2)}`);
   return data.results || [];
 }
 
@@ -235,5 +231,10 @@ async function init() {
   $('prev').onclick = () => { STATE.weekStart.setDate(STATE.weekStart.getDate() - 7); render(); };
   $('next').onclick = () => { STATE.weekStart.setDate(STATE.weekStart.getDate() + 7); render(); };
   $('copyInvite').onclick = copyInvite;
+  // Riconnetti Google OAuth — redirect diretto al login
+  $('reconnect').onclick = async () => {
+    $('reconnectMsg').textContent = 'Reindirizzamento...';
+    location.href = '/api/auth/login';
+  };
 }
 init();

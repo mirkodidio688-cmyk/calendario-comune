@@ -4,6 +4,7 @@ const ENC_KEY = process.env.ENC_KEY || 'dev-only-32-chars-replace-me!!!';
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const crypto = require('crypto');
+const util = require('util');
 
 // Tentativo di usare @netlify/blobs, fallback a cookie se non disponibile
 let blobsAvailable = false;
@@ -73,18 +74,32 @@ exports.handler = async (event) => {
 
   for (const email of emails) {
     let tok = null;
+    console.log(`🔍 Checking token for: ${email}`);
 
     // Prova blobs prima (multi-user support)
     if (blobsAvailable) {
+      console.log(`📦 Trying Blobs for ${email}`);
       try {
         const { getStore } = require('@netlify/blobs');
         const store = getStore('tokens');
+        const blob = await store.get(email);
+        console.log(`🔑 Blob found for ${email}:`, blob ? 'YES' : 'NO');
+        if (!blob) {
+          results.push({ email, error: 'no_token_in_blobs' });
+          continue;
+        }
         tok = await getValidToken(store, email);
-      } catch {}
+        console.log(`✅ Token resolved for ${email}:`, tok ? 'YES' : 'NO');
+      } catch (err) {
+        console.error(`💥 Blobs error for ${email}:`, err.message);
+        results.push({ email, error: 'blobs_error' });
+        continue;
+      }
     }
 
     // Fallback: usa token dal cookie (single-user only)
     if (!tok && cookieBlob) {
+      console.log(`🍪 Trying cookie fallback for ${email}`);
       try {
         const b = Buffer.from(cookieBlob, 'base64url');
         const iv = b.subarray(0, 12);
