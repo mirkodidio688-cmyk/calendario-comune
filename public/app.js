@@ -1,5 +1,32 @@
 // Frontend: gestisce OAuth, amici, renderizza griglia 4 settimane.
 // PRIVACY: il client vede solo slot busy/free. Mai titoli/dettagli.
+
+// Pannello di log temporaneo (solo per debug)
+function logToPanel(msg) {
+  const logPanel = $('logPanel');
+  if (!logPanel) {
+    const panel = document.createElement('div');
+    panel.id = 'logPanel';
+    panel.style.position = 'fixed';
+    panel.style.bottom = '10px';
+    panel.style.right = '10px';
+    panel.style.width = '300px';
+    panel.style.maxHeight = '200px';
+    panel.style.overflowY = 'scroll';
+    panel.style.background = '#111827';
+    panel.style.color = '#e5e7eb';
+    panel.style.border = '1px solid #334155';
+    panel.style.padding = '10px';
+    panel.style.fontFamily = 'monospace';
+    panel.style.fontSize = '12px';
+    panel.style.zIndex = '9999';
+    document.body.appendChild(panel);
+  }
+  const log = document.createElement('div');
+  log.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  $('logPanel').appendChild(log);
+}
+
 const $ = (id) => document.getElementById(id);
 const STATE = { me: null, friends: [], weekStart: null };
 
@@ -31,9 +58,17 @@ async function startLogin() {
 }
 
 async function fetchBusy(emails, timeMin, timeMax) {
-  const r = await fetch(`/.netlify/functions/events?emails=${encodeURIComponent(emails.join(','))}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
-  if (!r.ok) throw new Error(`events ${r.status}`);
-  return (await r.json()).results || [];
+  logToPanel(`Fetching busy for: ${emails.join(', ')}`);
+  const url = `/.netlify/functions/events?emails=${encodeURIComponent(emails.join(','))}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
+  logToPanel(`Request URL: ${url}`);
+  const r = await fetch(url);
+  if (!r.ok) {
+    logToPanel(`Error: ${r.status} ${r.statusText}`);
+    throw new Error(`events ${r.status}`);
+  }
+  const data = await r.json();
+  logToPanel(`Response: ${JSON.stringify(data, null, 2)}`);
+  return data.results || [];
 }
 
 function startOfWeek(d) {
