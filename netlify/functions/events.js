@@ -4,7 +4,16 @@ const ENC_KEY = process.env.ENC_KEY || 'dev-only-32-chars-replace-me!!!';
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const crypto = require('crypto');
-const { getStore } = require('@netlify/blobs');
+
+// Tentativo di usare @netlify/blobs, fallback a cookie se non disponibile
+let blobsAvailable = false;
+try {
+  const { getStore } = require('@netlify/blobs');
+  void getStore; // usato più sotto
+  blobsAvailable = true;
+} catch {
+  blobsAvailable = false;
+}
 
 function dec(data) {
   const b = Buffer.from(data, 'base64url');
@@ -15,6 +24,7 @@ function dec(data) {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
 }
+
 function enc(plain) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENC_KEY.slice(0, 32)), iv);
@@ -48,13 +58,60 @@ exports.handler = async (event) => {
   const q = event.queryStringParameters || {};
   const emails = (q.emails || '').split(',').map(s => s.trim()).filter(Boolean);
   const timeMin = q.timeMin, timeMax = q.timeMax;
+
+  // Se blobs non disponibile, controlla cookie per token fallback
+  let cookieBlob = null;
+  if (!blobsAvailable) {
+    const cookies = event.headers?.cookie || '';
+    const match = cookies.match(/auth=([^;]+)/);
+    if (match) cookieBlob = decodeURIComponent(match[1]);
+  }
+
   if (!emails.length || !timeMin || !timeMax) return { statusCode: 400, body: 'emails/timeMin/timeMax richiesti' };
 
-  const store = getStore('tokens');
-  const out = [];
+  const results = [];
+
   for (const email of emails) {
-    const tok = await getValidToken(store, email);
-    if (!tok) { out.push({ email, error: 'not_connected' }); continue; }
+    let tok = null;
+
+    // Prova blobs prima (multi-user support)
+    if (blobsAvailable) {
+      try {
+        const { getStore } = require('@netlify/blobs');
+        const store = getStore('tokens');
+        tok = await getValidToken(store, email);
+      } catch {}
+    }
+
+    // Fallback: usa token dal cookie (single-user only)
+    if (!tok && cookieBlob) {
+      try {
+        const b = Buffer.from(cookieBlob, 'base64url');
+        const iv = b.subarray(0, 12);
+        const tag = b.subarray(12, 28);
+        const ct = b.subarray(28);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENC_KEY.slice(0, 32)), iv);
+        decipher.setAuthTag(tag);
+        const decrypted = JSON.parse(Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8'));
+        if (decrypted.expires_at > Date.now() + 60_000) {
+          tok = decrypted.access_token;
+        } else if (decrypted.refresh_token) {
+          const r = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
+              refresh_token: decrypted.refresh_token, grant_type: 'refresh_token',
+            }),
+          });
+          const t = await r.json();
+          if (t.access_token) tok = t.access_token;
+        }
+      } catch {}
+    }
+
+    if (!tok) { results.push({ email, error: 'not_connected' }); continue; }
+
     const u = new URL('https://www.googleapis.com/calendar/v3/freeBusy');
     u.searchParams.set('timeMin', timeMin);
     u.searchParams.set('timeMax', timeMax);
@@ -64,9 +121,10 @@ exports.handler = async (event) => {
       headers: { authorization: `Bearer ${tok}`, 'content-type': 'application/json' },
     });
     const data = await r.json();
-    if (!r.ok) { out.push({ email, error: data }); continue; }
+    if (!r.ok) { results.push({ email, error: data }); continue; }
     const busy = data.calendars?.primary?.busy || [];
-    out.push({ email, busy: busy.map(b => ({ s: b.start, e: b.end })) });
+    results.push({ email, busy: busy.map(b => ({ s: b.start, e: b.end })) });
   }
-  return { statusCode: 200, body: JSON.stringify({ results: out }), headers: { 'content-type': 'application/json' } };
+
+  return { statusCode: 200, body: JSON.stringify({ results }), headers: { 'content-type': 'application/json' } };
 };
