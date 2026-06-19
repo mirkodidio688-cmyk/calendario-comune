@@ -9,6 +9,3 @@
 
 [functions]
   included_files = ["node_modules/@netlify/blobs/**"]
-
-[[plugins]]
-  package = "@netlify/plugin-blobs"
